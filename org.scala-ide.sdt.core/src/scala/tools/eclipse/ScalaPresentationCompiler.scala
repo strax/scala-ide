@@ -145,6 +145,8 @@ class ScalaPresentationCompiler(project : ScalaProject, settings : Settings)
     sourceFiles.keysIterator.foreach(_.scheduleReconcile)
     askShutdown
   }
+  
+  override def forScaladoc = true;
 }
 
 object ScalaPresentationCompiler {

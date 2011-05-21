@@ -32,11 +32,19 @@ class ScalaHover(codeAssist : Option[ICodeAssist]) extends ITextHover {
               sym.infoString(tpeinfo)))
             }
             
-            for (sym <- Option(t.symbol); tpe <- Option(t.tpe))
-              yield if (sym.isClass || sym.isModule) sym.fullName else defString(sym, tpe)
-          } getOrElse None
-
-
+            for (sym <- Option(t.symbol); tpe <- Option(t.tpe)) 
+              yield {
+               val doc = toJavaDoc(rawDocComment(sym));
+                if (!doc.equals("")) doc
+                else compiler.getJavaElement(sym) match { 
+                    case Some(elem) => 
+                      elem.getAttachedJavadoc(null)
+                    case _ =>
+                      if (sym.isClass || sym.isModule) sym.fullName 
+                      else defString(sym, tpe) 
+                   } 
+              }            
+          } getOrElse None 
           
           val resp = new Response[Tree]
           val range = compiler.rangePos(src, start, start, end)
