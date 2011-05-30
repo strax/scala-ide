@@ -206,7 +206,9 @@ trait ScalaJavaMapper { self : ScalaPresentationCompiler =>
   import org.eclipse.jdt.core._
   import org.eclipse.jdt.internal.core._
   def getJavaElement(sym: Symbol): Option[IMember] = {
-    val javaModel = JavaModelManager.getJavaModelManager.getJavaModel
+    if (sym == null)
+      return None;
+    val javaModel = JavaModelManager.getJavaModelManager.getJavaModel    
     if (sym.isClass) {
       val fullClassName = mapType(sym)
       val projs = javaModel.getJavaProjects

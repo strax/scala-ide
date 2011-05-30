@@ -24,6 +24,11 @@ import scala.tools.nsc.doc.model.ModelFactory
 import scala.tools.nsc.doc.model.TreeFactory
 import scala.tools.nsc.doc.html.HtmlPage
 import scala.xml.NodeSeq
+import scala.tools.eclipse.javaelements.ScalaClassFile
+import scala.tools.eclipse.javaelements.ScalaElement
+import scala.tools.nsc.doc.model.comment.Comment
+import scala.util.matching.Regex
+import scala.tools.nsc.doc.model.comment.Body
 
 class ScalaHover(codeAssist: Option[ICodeAssist]) extends JavadocHover with ReflectionUtils {
   
@@ -57,10 +62,11 @@ class ScalaHover(codeAssist: Option[ICodeAssist]) extends JavadocHover with Refl
 
   override def getHoverInfo2(textViewer: ITextViewer, hoverRegion: IRegion): Object = {
     val javaElements = getJavaElementsAt(textViewer, hoverRegion);
-    if (javaElements.length > 0 && !javaElements(0).isInstanceOf[ScalaSourceTypeElement]) {
+    if (javaElements.length > 0 && !javaElements(0).isInstanceOf[ScalaElement]
+    	 && !javaElements(0).isInstanceOf[ScalaClassFile#ScalaBinaryType]) {
       try {
         super.getHoverInfo2(textViewer, hoverRegion)
-      } catch {
+      } catch { 
         case e => buildScalaHover(textViewer, hoverRegion)
       }
     } else {
@@ -93,22 +99,45 @@ class ScalaHover(codeAssist: Option[ICodeAssist]) extends JavadocHover with Refl
               }
             
               import scala.tools.nsc.doc.Settings
-              object MyCommentFactory extends ModelFactory(compiler, new Settings({ e : String => })) 
+              val commentFactory = new ModelFactory(compiler, new Settings({ e : String => })) 
               	with CommentFactory with TreeFactory {              	                 			    
                 
-                def scalaDocComment2Html(expanded : String, raw : String, pos : Position) : String = {
-                  val comment = parse(expanded, raw, pos)                  
-                  val htmlConvertor = new HtmlPage {
-                    val path = List("")
-                    val title = ""  
-	  		        val headers = NodeSeq.Empty
-			        val body = NodeSeq.Empty			        
-			        def getHtmlAsString = bodyToHtml(comment.body).toString
-                  }                  
-                  htmlConvertor.getHtmlAsString
+                def scalaDocComment2Html(expanded : String, raw : String, pos : Position, symbol : Symbol) : String = {
+                  val sb = new StringBuffer()
+                  // transforms "<p>something</p>" into "something"
+                  def removeParagraph(html : NodeSeq) = 
+                    html.head.child.foldLeft("")((x, y) => x + " " + y.toString)
+                  
+                  def addParList(title : String, parNames2Explanation : scala.collection.Map[String, Body]) {
+                    HTMLPrinter.addSmallHeader(sb, title)
+                    HTMLPrinter.startBulletList(sb);
+                    parNames2Explanation.foreach(entry =>  
+                      HTMLPrinter.addBullet(sb, entry._1 + " - " +
+                        removeParagraph(comment2HTMLBuilder.bodyToHtml(entry._2))))                         
+                    HTMLPrinter.endBulletList(sb);
+                  }
+
+                  val comment = parse(expanded, raw, pos)                                    
+                  sb.append(comment2HTMLBuilder.commentToHtml(comment).toString)
+                  if (comment.valueParams.size > 0) 
+                  	addParList("Parameters:", comment.valueParams)                      
+                  if (comment.typeParams.size > 0) 
+                    addParList("Type Parameters:", comment.typeParams)
+                  comment.result match {
+                    case Some(body) => 
+                      HTMLPrinter.addSmallHeader(sb, "Returns:")
+                      HTMLPrinter.startBulletList(sb);                                                  
+                      HTMLPrinter.addBullet(sb,  
+                        removeParagraph(comment2HTMLBuilder.bodyToHtml(body)))
+                      HTMLPrinter.endBulletList(sb);
+                    case _ =>  
+                  }
+                  if (comment.throws.size > 0) 
+                    addParList("Throws:", comment.throws)                   
+                  sb.toString
                 }
               }
-                            
+                             
               for (sym <- Option(t.symbol); tpe <- Option(t.tpe)) 
                 yield {                
                   if (sym.isClass || sym.isModule) { 
@@ -117,8 +146,21 @@ class ScalaHover(codeAssist: Option[ICodeAssist]) extends JavadocHover with Refl
                     JavadocHover.addImageAndLabel(buffer, image, 
                         16, 16, sym.fullName, 20, 2);                                             
                   } else 
-                    HTMLPrinter.addSmallHeader(buffer, defString(sym, tpe))  
-                  val commentAsHtml = MyCommentFactory.scalaDocComment2Html(expandedDocComment(sym), rawDocComment(sym), sym.pos)
+                    HTMLPrinter.addSmallHeader(buffer, defString(sym, tpe)) 
+                    
+                  val loc = locate(sym, scu) 
+                  loc match {
+                    case Some((scf : ScalaClassFile, pos)) =>  
+                      //if the symbol is defined in a scala class file, parse that file to harvest  
+                      //the ScalaDoc from the corresponding source                      
+                      scf.withSourceFile({ (src1, compiler) =>
+                        val resp = new Response[Tree]
+                        val range = compiler.rangePos(src, pos, pos, pos + sym.name.length)
+                        askTypeAt(range, resp)                        
+                      })();
+                    case _ =>  
+                  }
+                  val commentAsHtml = commentFactory.scalaDocComment2Html(expandedDocComment(sym), rawDocComment(sym), sym.pos, sym)
                   buffer.append(commentAsHtml);                                                        
                 }                        
             }
@@ -139,5 +181,12 @@ class ScalaHover(codeAssist: Option[ICodeAssist]) extends JavadocHover with Refl
 
   override def getHoverRegion(viewer: ITextViewer, offset: Int) = {
     ScalaWordFinder.findWord(viewer.getDocument, offset)
+  }
+  
+  object comment2HTMLBuilder extends HtmlPage {
+    val path = List("")
+    val title = ""  
+	val headers = NodeSeq.Empty
+	val body = NodeSeq.Empty			        	
   }
 }
