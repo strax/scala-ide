@@ -32,9 +32,13 @@ import scala.tools.eclipse.util.ReflectionUtils
 import scala.tools.eclipse.lexical._
 import scala.tools.eclipse.formatter.ScalaFormattingStrategy
 import scala.tools.eclipse.properties.ScalaSyntaxClasses
+import org.eclipse.jface.text.information.IInformationPresenter
+import org.eclipse.jdt.internal.ui.text.java.hover.JavaInformationProvider
+import org.eclipse.jdt.internal.ui.text.java.hover.JavaTypeHover
 
 class ScalaSourceViewerConfiguration(store: IPreferenceStore, scalaPreferenceStore: IPreferenceStore, editor: ITextEditor)
-   extends JavaSourceViewerConfiguration(JavaPlugin.getDefault.getJavaTextTools.getColorManager, store, editor, IJavaPartitions.JAVA_PARTITIONING) {
+   extends JavaSourceViewerConfiguration(JavaPlugin.getDefault.getJavaTextTools.getColorManager, store, editor, IJavaPartitions.JAVA_PARTITIONING) 
+   with ReflectionUtils {
 
    private val codeScanner = new ScalaCodeScanner(getColorManager, store)
 
@@ -145,4 +149,21 @@ class ScalaSourceViewerConfiguration(store: IPreferenceStore, scalaPreferenceSto
 
    override def affectsTextPresentation(event: PropertyChangeEvent) = true
 
+  /** 
+   * Returns Scala-IDE version of InformationPresenter. It differs from normal Java 
+   * InformationPresenter in that it uses ScalaHover for computing JavadocHovers. 
+   * 
+   * @return: the standard information presenter with changed JavadocInformationProvider
+   */ 
+  override def getInformationPresenter(sourceViewer: ISourceViewer) = {      
+    val informationPresenter = super.getInformationPresenter(sourceViewer)
+    val scalaHover = new ScalaHover(getCodeAssist)
+    scalaHover.setEditor(this.getEditor())    
+    val informationProvider = informationPresenter.getInformationProvider(IDocument.DEFAULT_CONTENT_TYPE).asInstanceOf[JavaInformationProvider]
+    val implementation = 
+      getDeclaredField(classOf[JavaInformationProvider], "fImplementation").
+      get(informationProvider).asInstanceOf[JavaTypeHover]          
+    getDeclaredField(classOf[JavaTypeHover], "fJavadocHover").set(implementation, scalaHover);    
+    informationPresenter;    
+  } 
 }
