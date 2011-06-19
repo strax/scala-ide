@@ -13,22 +13,28 @@ import org.eclipse.jface.text.contentassist.
               IContextInformation, IContextInformationExtension}
 import org.eclipse.core.runtime.IProgressMonitor
 import org.eclipse.jdt.core.compiler.CharOperation
-
 import org.eclipse.jdt.ui.text.java.{IJavaCompletionProposalComputer,
                                      ContentAssistInvocationContext,
                                      JavaContentAssistInvocationContext,
                                      IJavaCompletionProposal}
-
 import org.eclipse.swt.graphics.Image
-import org.eclipse.jdt.internal.ui.JavaPluginImages 
+import org.eclipse.jdt.internal.ui.JavaPluginImages
 import org.eclipse.jface.text.IDocument
-
 import scala.tools.nsc.symtab.Flags
 import scala.tools.nsc.util.SourceFile
-
 import javaelements.ScalaCompilationUnit
+import org.eclipse.jdt.internal.ui.text.java.AbstractJavaCompletionProposal
+import org.eclipse.jface.internal.text.html.HTMLPrinter
+import util.ReflectionUtils
+import org.eclipse.jdt.internal.ui.text.java.hover.JavadocBrowserInformationControlInput
+import org.eclipse.jface.text.contentassist.ICompletionProposalExtension5
+import org.eclipse.jface.text.IInformationControlCreator
+import org.eclipse.jface.internal.text.html.BrowserInformationControl
+import org.eclipse.jdt.internal.ui.text.java.hover.JavadocHover
+import scala.tools.eclipse.util.EclipseUtils
+import org.eclipse.jface.text.contentassist.ICompletionProposalExtension3
 
-class ScalaCompletionProposalComputer extends IJavaCompletionProposalComputer {
+class ScalaCompletionProposalComputer extends IJavaCompletionProposalComputer with ReflectionUtils {
   def sessionStarted() {}
   def sessionEnded() {}
   def getErrorMessage() = null
@@ -111,6 +117,10 @@ class ScalaCompletionProposalComputer extends IJavaCompletionProposalComputer {
     def nameMatches(sym : compiler.Symbol) = prefixMatches(sym.decodedName.toString.toArray, prefix)  
     val buff = new collection.mutable.ListBuffer[ICompletionProposal]
 
+    val javadocHoverClazz = Class.forName("org.eclipse.jdt.internal.ui.text.java.hover.JavadocHover")
+    val getStyleSheetMethod = getDeclaredMethod(javadocHoverClazz, "getStyleSheet") 
+    val styleSheet = getStyleSheetMethod.invoke(null).asInstanceOf[String];         
+    
     /** Add a new completion proposal to the buffer. Skip constructors and accessors.
      * 
      *  Computes a very basic relevance metric based on where the symbol comes from 
@@ -142,9 +152,27 @@ class ScalaCompletionProposalComputer extends IJavaCompletionProposalComputer {
              tpe.paramss.map(_.map(_.tpe.toString).mkString("(", ", ", ")")).mkString +
              ": " + tpe.finalResultType.toString}
          else name
-       val container = sym.owner.enclClass.fullName
-       
-       // rudimentary relevance, place own members before ineherited ones, and before view-provided ones
+         
+       def additionalInfoBuilder() : JavadocBrowserInformationControlInput = {         
+         val buffer = new StringBuffer();
+         HTMLPrinter.insertPageProlog(buffer, 0, styleSheet);             
+         
+         compiler.getJavaElement(sym) match {
+           case Some(element) => 
+             val info = element.getAttachedJavadoc(null)         
+             if (info != null && info.length() > 0) 
+               buffer.append(info);
+             else
+               buffer.append(compiler.buildCommentAsHtml(scu, sym, tpe))
+           case _ =>
+             buffer.append(compiler.buildCommentAsHtml(scu, sym, tpe))
+         }
+           
+         HTMLPrinter.addPageEpilog(buffer);
+         return new JavadocBrowserInformationControlInput(null, null, buffer.toString, 0);         
+       }
+         
+       // rudimentary relevance, place own members before inherited ones, and before view-provided ones
        var relevance = 100
        if (inherited) relevance -= 10
        if (viaView != compiler.NoSymbol) relevance -= 20
@@ -158,7 +186,7 @@ class ScalaCompletionProposalComputer extends IJavaCompletionProposalComputer {
        }
        
        val contextString = sym.paramss.map(_.map(p => "%s: %s".format(p.decodedName, p.tpe)).mkString("(", ", ", ")")).mkString("")
-       buff += new ScalaCompletionProposal(start, name, signature, contextString, container, relevance, image, context.getViewer.getSelectionProvider)
+       buff += new ScalaCompletionProposal(start, name, signature, contextString, additionalInfoBuilder, relevance, image, context.getViewer.getSelectionProvider)
     }
 
     for (completions <- completed.get.left.toOption) {
@@ -181,8 +209,8 @@ class ScalaCompletionProposalComputer extends IJavaCompletionProposalComputer {
   }    
   
   private class ScalaCompletionProposal(startPos: Int, completion: String, display: String, contextName: String, 
-                                        container: String, relevance: Int, image: Image, selectionProvider: ISelectionProvider) 
-                                        extends IJavaCompletionProposal with ICompletionProposalExtension {
+                                        additionalInfoBuilder: () => JavadocBrowserInformationControlInput, relevance: Int, image: Image, selectionProvider: ISelectionProvider) 
+                                        extends IJavaCompletionProposal with ICompletionProposalExtension with ICompletionProposalExtension3 with ICompletionProposalExtension5 {
     def getRelevance() = relevance
     def getImage() = image
     def getContextInformation(): IContextInformation = 
@@ -191,8 +219,33 @@ class ScalaCompletionProposalComputer extends IJavaCompletionProposalComputer {
       else null
         
     def getDisplayString() = display
-    def getAdditionalProposalInfo() = container
+    
+    def getAdditionalProposalInfo(monitor : IProgressMonitor) : Object = additionalInfoBuilder();
+    def getAdditionalProposalInfo() = {  
+      val res = additionalInfoBuilder()
+      if (res != null) res.toString else "No Proposal Info"
+    }
+    
+    def getPrefixCompletionText(document : IDocument, completionOffset : Int) : CharSequence = "" 
+      
+    def getPrefixCompletionStart(document : IDocument, completionOffset : Int) : Int = 0;
+      
+    def getInformationControlCreator() : IInformationControlCreator =  
+      informationControlCreator    
+      
+    lazy val informationControlCreator = {
+      import org.eclipse.jdt.internal.ui.JavaPlugin;
+	  val shell= JavaPlugin.getActiveWorkbenchShell();
+	  if (shell == null || !BrowserInformationControl.isAvailable(shell)) 
+		null
+	  else {
+  	    val presenterControlCreator= new JavadocHover.PresenterControlCreator(EclipseUtils.getWorkbenchSite);
+	    new JavadocHover.HoverControlCreator(presenterControlCreator, true);
+	  }
+	}
+    
     def getSelection(d : IDocument) = null
+    
     def apply(d : IDocument) { throw new IllegalStateException("Shouldn't be called") }
     
     def apply(d : IDocument, trigger : Char, offset : Int) {

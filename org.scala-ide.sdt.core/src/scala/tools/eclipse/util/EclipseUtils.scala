@@ -5,8 +5,9 @@ import scalariform.utils.TextEdit
 import org.eclipse.jface.text.IDocumentExtension4
 import org.eclipse.jface.text.IDocument
 import org.eclipse.core.runtime.IAdaptable
-
 import PartialFunction._
+import org.eclipse.ui.IWorkbenchSite
+import org.eclipse.jdt.internal.ui.JavaPlugin
 
 object EclipseUtils {
 
@@ -30,4 +31,13 @@ object EclipseUtils {
 
   implicit def asEclipseTextEdit(edit: TextEdit): EclipseTextEdit = new ReplaceEdit(edit.position, edit.length, edit.replacement)
 
+  def getWorkbenchSite : IWorkbenchSite = {
+	val page= JavaPlugin.getActivePage();
+	if (page != null) {
+	  val part= page.getActivePart();
+	  if (part != null)
+		return part.getSite();
+	}
+	return null;
+  }
 }
