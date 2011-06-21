@@ -205,6 +205,38 @@ trait ScalaJavaMapper { self : ScalaPresentationCompiler =>
   
   import org.eclipse.jdt.core._
   import org.eclipse.jdt.internal.core._
+  import scala.tools.nsc.symtab.Flags
+  
+  /** Return the Java Element corresponding to the given Java Symbol.
+   * 
+   *  The given symbol has to be a Java symbol.
+   */
+  def getJavaElement2(sym: Symbol): Option[IMember] = {
+    assert((sym ne null) /* && sym.hasFlag(Flags.JAVA) */)
+    
+    def matchesMethod(meth: IMethod): Boolean = {
+      import Signature._
+      askOption { () =>
+        ((meth.getElementName == sym.name.toString)
+          && meth.getParameterTypes.map(tp => getTypeErasure(getElementType(tp)))
+                                   .sameElements(sym.tpe.paramTypes.map(mapParamTypeSignature)))
+      }.getOrElse(false)
+    }
+    
+    val javaModel = JavaModelManager.getJavaModelManager.getJavaModel
+    if (sym.isClass) {
+      val fullClassName = mapType(sym)
+      val projs = javaModel.getJavaProjects
+      projs.map(p => Option(p.findType(fullClassName))).find(_.isDefined).flatten
+    } else getJavaElement2(sym.owner) match {
+        case Some(ownerClass: IType) => 
+          if (sym.isMethod) ownerClass.getMethods.find(matchesMethod)
+          else ownerClass.getFields.find(_.getElementName == sym.name.toString)
+        case _ => None
+    } 
+  }
+  
+  /*
   def getJavaElement(sym: Symbol): Option[IMember] = {
     if (sym == null)
       return None;
@@ -251,5 +283,5 @@ trait ScalaJavaMapper { self : ScalaPresentationCompiler =>
       }
     }
     return None;
-  } 
+  } */
 }

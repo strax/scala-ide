@@ -157,7 +157,7 @@ class ScalaCompletionProposalComputer extends IJavaCompletionProposalComputer wi
          val buffer = new StringBuffer();
          HTMLPrinter.insertPageProlog(buffer, 0, styleSheet);             
          
-         compiler.getJavaElement(sym) match {
+         compiler.getJavaElement2(sym) match {
            case Some(element) => 
              val info = element.getAttachedJavadoc(null)         
              if (info != null && info.length() > 0) 

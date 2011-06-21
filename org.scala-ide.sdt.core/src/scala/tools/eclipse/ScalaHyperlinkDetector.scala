@@ -79,7 +79,7 @@ class ScalaHyperlinkDetector extends AbstractHyperlinkDetector with Logger {
               }.flatten.headOption
 
               if (!hyperlinks.isDefined || hyperlinks.get.isEmpty) {
-                log("!!! Falling back to selection engine for %s!".format(typed.left), Category.ERROR)
+//                log("!!! Falling back to selection engine for %s!".format(typed.left), Category.ERROR)
                 codeSelect(textEditor, wordRegion, scu)
               } else
                 hyperlinks.get.toArray

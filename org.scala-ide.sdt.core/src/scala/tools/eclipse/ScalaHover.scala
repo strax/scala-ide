@@ -43,9 +43,9 @@ class ScalaHover(codeAssist: Option[ICodeAssist]) extends JavadocHover with Refl
           val range = compiler.rangePos(src, start, start, end)
           askTypeAt(range, resp)
           resp.get match {
-            case Left(tree) => 
+            case Left(tree) if tree.symbol ne null => 
               askOption { () => 
-                compiler.getJavaElement(tree.symbol).getOrElse(null) 
+                compiler.getJavaElement2(tree.symbol).getOrElse(null) 
               } match {
                 case Some(el) => Array[IJavaElement](el)                  	
                 case _ => Array.empty[IJavaElement]
@@ -181,7 +181,7 @@ trait CommentToHtmlTransformer { self : ScalaPresentationCompiler =>
       JavadocHover.addImageAndLabel(buffer, image,
         16, 16, sym.fullName, 20, 2);
     } else
-      HTMLPrinter.addSmallHeader(buffer, defString(sym, tpe))
+      HTMLPrinter.addSmallHeader(buffer, askOption(() => defString(sym, tpe)).getOrElse(""))
 
     val loc = locate(sym, scu)
     loc match {
@@ -196,7 +196,7 @@ trait CommentToHtmlTransformer { self : ScalaPresentationCompiler =>
       case _ =>
     }
     
-    buffer.append(commentFactory.scalaDocComment2Html(expandedDocComment(sym), rawDocComment(sym), sym.pos, sym))
+    buffer.append(commentFactory.scalaDocComment2Html(askOption(() => expandedDocComment(sym)).getOrElse(""), rawDocComment(sym), sym.pos, sym))
     buffer
   }
 }
