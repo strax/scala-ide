@@ -23,6 +23,7 @@
 
   <modules>
     <module>../org.scala-ide.sdt.weaving.feature</module>
+    <module>../org.scala-ide.jrebel.feature</module>
     <module>../org.scala-ide.sdt.aspects</module>
     <module>../org.scala-ide.sdt.core</module>
     <module>../org.scala-ide.sdt.core.tests</module>
@@ -112,6 +113,13 @@
       <name>AJDT for Eclipse Helios p2 repository</name>
       <layout>p2</layout>
       <url>http://download.eclipse.org/tools/ajdt/36/update</url>
+      <snapshots><enabled>false</enabled></snapshots>
+    </repository>
+    <repository>
+      <id>jrebel-repo</id>
+      <name>JRebel p2 repository</name>
+      <layout>p2</layout>
+      <url>http://www.zeroturnaround.com/update-site</url>
       <snapshots><enabled>false</enabled></snapshots>
     </repository>
     <repository>

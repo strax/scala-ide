@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feature
+      id="org.scala-ide.jrebel.feature"
+      label="JRebel for Scala"
+      version="2.0.0.qualifier"
+      provider-name="org.scala-ide">
+
+   <description>
+      This feature installs ZeroTurnaround&apos;s JRebel for Scala. You will need to obtain a Scala license after the plugin is installed.
+   </description>
+
+   <copyright url="http://www.example.com/copyright">
+      [Enter Copyright Description here.]
+   </copyright>
+
+   <license>
+      [Enter License Description here.]
+   </license>
+
+   <plugin
+         id="org.zeroturnaround.eclipse"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"
+         unpack="false"/>
+
+   <plugin
+         id="org.zeroturnaround.eclipse.debug"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"
+         unpack="false"/>
+
+   <plugin
+         id="org.zeroturnaround.eclipse.embedder"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"/>
+
+   <plugin
+         id="org.zeroturnaround.eclipse.wtp"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"
+         unpack="false"/>
+
+</feature>

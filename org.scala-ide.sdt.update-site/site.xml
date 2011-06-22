@@ -9,6 +9,9 @@
    <feature url="features/org.scala-ide.sdt.source.feature_0.0.0.jar" id="org.scala-ide.sdt.source.feature" version="0.0.0">
       <category name="sdt-source"/>
    </feature>
+   <feature url="features/org.scala-ide.jrebel.feature_0.0.0.jar" id="org.scala-ide.jrebel.feature" version="0.0.0">
+      <category name="jrebel-eclipse"/>
+   </feature>
    <category-def name="sdt" label="Scala IDE for Eclipse"/>
    <category-def name="sdt-weaving" label="JDT Weaving">
       <description>
@@ -16,4 +19,5 @@
       </description>
    </category-def>
    <category-def name="sdt-source" label="Scala IDE for Eclipse Source Feature"/>
+   <category-def name="jrebel-eclipse" label="JRebel for Eclipse"/>
 </site>
