@@ -228,12 +228,14 @@ trait ScalaJavaMapper { self : ScalaPresentationCompiler =>
       val fullClassName = mapType(sym)
       val projs = javaModel.getJavaProjects
       projs.map(p => Option(p.findType(fullClassName))).find(_.isDefined).flatten
-    } else getJavaElement2(sym.owner) match {
+    } else if (sym ne NoSymbol) 
+      getJavaElement2(sym.owner) match {
         case Some(ownerClass: IType) => 
           if (sym.isMethod) ownerClass.getMethods.find(matchesMethod)
           else ownerClass.getFields.find(_.getElementName == sym.name.toString)
         case _ => None
-    } 
+    } else
+      None;
   }
   
   /*

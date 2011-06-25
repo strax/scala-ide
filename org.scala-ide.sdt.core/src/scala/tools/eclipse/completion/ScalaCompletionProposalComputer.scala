@@ -34,7 +34,7 @@ import org.eclipse.jdt.internal.ui.text.java.hover.JavadocHover
 import scala.tools.eclipse.util.EclipseUtils
 import org.eclipse.jface.text.contentassist.ICompletionProposalExtension3
 
-class ScalaCompletionProposalComputer extends IJavaCompletionProposalComputer with ReflectionUtils {
+class ScalaCompletionProposalComputer extends IJavaCompletionProposalComputer with JavadocUtils {
   def sessionStarted() {}
   def sessionEnded() {}
   def getErrorMessage() = null
@@ -117,10 +117,6 @@ class ScalaCompletionProposalComputer extends IJavaCompletionProposalComputer wi
     def nameMatches(sym : compiler.Symbol) = prefixMatches(sym.decodedName.toString.toArray, prefix)  
     val buff = new collection.mutable.ListBuffer[ICompletionProposal]
 
-    val javadocHoverClazz = Class.forName("org.eclipse.jdt.internal.ui.text.java.hover.JavadocHover")
-    val getStyleSheetMethod = getDeclaredMethod(javadocHoverClazz, "getStyleSheet") 
-    val styleSheet = getStyleSheetMethod.invoke(null).asInstanceOf[String];         
-    
     /** Add a new completion proposal to the buffer. Skip constructors and accessors.
      * 
      *  Computes a very basic relevance metric based on where the symbol comes from 
@@ -156,7 +152,7 @@ class ScalaCompletionProposalComputer extends IJavaCompletionProposalComputer wi
        def additionalInfoBuilder() : JavadocBrowserInformationControlInput = {         
          val buffer = new StringBuffer();
          HTMLPrinter.insertPageProlog(buffer, 0, styleSheet);             
-         
+                  
          compiler.getJavaElement2(sym) match {
            case Some(element) => 
              val info = element.getAttachedJavadoc(null)         

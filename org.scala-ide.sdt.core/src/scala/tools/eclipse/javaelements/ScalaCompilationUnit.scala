@@ -33,7 +33,9 @@ import scala.tools.eclipse.contribution.weaving.jdt.{ IScalaCompilationUnit, ISc
 import scala.tools.eclipse.{ ScalaImages, ScalaPlugin, ScalaPresentationCompiler, ScalaSourceIndexer, ScalaWordFinder }
 import scala.tools.eclipse.util.ReflectionUtils
 
-trait ScalaCompilationUnit extends Openable with env.ICompilationUnit with ScalaElement with IScalaCompilationUnit with IBufferChangedListener {
+trait ScalaCompilationUnit extends Openable with env.ICompilationUnit with ScalaElement 
+     with IScalaCompilationUnit with IBufferChangedListener with JavadocUtils {
+  
   val project = ScalaPlugin.plugin.getScalaProject(getJavaProject.getProject)
 
   val file : AbstractFile
@@ -113,7 +115,59 @@ trait ScalaCompilationUnit extends Openable with env.ICompilationUnit with Scala
   }
     
   override def codeSelect(cu : env.ICompilationUnit, offset : Int, length : Int, workingCopyOwner : WorkingCopyOwner) : Array[IJavaElement] = {
-    Array.empty
+    withSourceFile({ (src, compiler) =>
+      import compiler._
+      
+      //@Iulian & co: this method is really badly placed here since we update the 
+      //              JavadocView as a side-effect of the 'codeSelect' 
+      def updateJavadocView(sym : Symbol, tpe : Type) {
+    	import org.eclipse.jdt.internal.ui._
+    	import org.eclipse.jdt.internal.ui.text.java.hover._
+    	import org.eclipse.jdt.internal.ui.infoviews._
+        import org.eclipse.jdt.ui._
+        import org.eclipse.jface.internal.text.html._
+        import org.eclipse.ui._
+        import scala.tools.eclipse.util._        
+        
+        SWTUtils.asyncExec {
+    	    import org.eclipse.ui.internal._
+	        val window = PlatformUI.getWorkbench.getActiveWorkbenchWindow().getActivePage().asInstanceOf[WorkbenchPage];
+	        val perspective = window.getActivePerspective();
+	        val viewRef = perspective.findView(JavaUI.ID_JAVADOC_VIEW, null);
+	        if (viewRef == null)
+	          return;
+	        val view = viewRef.getView(true).asInstanceOf[JavadocView];	    
+	    	val buffer= new StringBuffer();    
+	        HTMLPrinter.insertPageProlog(buffer, 0, styleSheet);
+	        val html = buildCommentAsHtml(this, sym, tpe)    	
+    	    buffer.append(html)
+	        HTMLPrinter.addPageEpilog(buffer);
+	        
+	        val javadocViewClazz = Class.forName("org.eclipse.jdt.internal.ui.infoviews.JavadocView")
+	        val objectClazz = Class.forName("java.lang.Object")
+	        val doSetInputMethod = getDeclaredMethod(javadocViewClazz, "doSetInput", objectClazz); 	        
+	        doSetInputMethod.invoke(view, buffer.toString);
+    	}
+      }
+      
+      def computeJavaElement(t: Tree) : Option[IJavaElement] = { 
+        askOption { () =>
+          import scala.reflect.internal._
+          if (t.symbol != null && t.tpe != null && !t.symbol.hasFlag(Flags.JAVA)) { 
+        	//if the symbol comes from scala, then update the JavadocView
+            updateJavadocView(t.symbol, t.tpe)
+          	None
+          } else //for Java symbols, leave the JDT do the work of updating the JavadocView
+            Option(t.symbol).flatMap(getJavaElement2(_))
+        }.flatten     
+      }
+      
+      val resp = new Response[Tree]
+      val range = rangePos(src, offset, offset, offset + length)
+      askTypeAt(range, resp)
+      val r = resp.get.left.toOption.map(computeJavaElement(_)).flatten
+      r.map(Array(_)).getOrElse(Array.empty[IJavaElement])      
+    })(Array.empty[IJavaElement])        
   }
 
   def codeComplete

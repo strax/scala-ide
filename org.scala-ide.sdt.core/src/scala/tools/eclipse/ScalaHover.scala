@@ -30,7 +30,7 @@ import scala.tools.nsc.doc.model.comment.Comment
 import scala.util.matching.Regex
 import scala.tools.nsc.doc.model.comment.Body
 
-class ScalaHover(codeAssist: Option[ICodeAssist]) extends JavadocHover with ReflectionUtils {
+class ScalaHover(codeAssist: Option[ICodeAssist]) extends JavadocHover with JavadocUtils {
   
   override def getJavaElementsAt(textViewer: ITextViewer, region: IRegion) = {
     codeAssist match {
@@ -74,9 +74,7 @@ class ScalaHover(codeAssist: Option[ICodeAssist]) extends JavadocHover with Refl
     }
   }
   
-  val javadocHoverClazz = Class.forName("org.eclipse.jdt.internal.ui.text.java.hover.JavadocHover")
-  val getStyleSheetMethod = getDeclaredMethod(javadocHoverClazz, "getStyleSheet") 
-  val styleSheet = getStyleSheetMethod.invoke(null).asInstanceOf[String];  
+    
   def buildScalaHover(viewer: ITextViewer, region: IRegion) : JavadocBrowserInformationControlInput = {
     val buffer= new StringBuffer();    
     HTMLPrinter.insertPageProlog(buffer, 0, styleSheet);
@@ -112,9 +110,18 @@ class ScalaHover(codeAssist: Option[ICodeAssist]) extends JavadocHover with Refl
   }
 }
 
+trait JavadocUtils extends ReflectionUtils {
+  
+  val styleSheet = {
+    val javadocHoverClazz = Class.forName("org.eclipse.jdt.internal.ui.text.java.hover.JavadocHover")
+    val getStyleSheetMethod = getDeclaredMethod(javadocHoverClazz, "getStyleSheet") 
+    getStyleSheetMethod.invoke(null).asInstanceOf[String];
+  }
+}
+
 trait CommentToHtmlTransformer { self : ScalaPresentationCompiler =>
   import scala.tools.nsc.doc.Settings
-    
+  
   val classImage = JavaPlugin.getDefault().getImagesOnFSRegistry().getImageURL(ScalaImages.SCALA_CLASS)
   val objectImage = JavaPlugin.getDefault().getImagesOnFSRegistry().getImageURL(ScalaImages.SCALA_OBJECT)
 
@@ -196,7 +203,9 @@ trait CommentToHtmlTransformer { self : ScalaPresentationCompiler =>
       case _ =>
     }
     
-    buffer.append(commentFactory.scalaDocComment2Html(askOption(() => expandedDocComment(sym)).getOrElse(""), rawDocComment(sym), sym.pos, sym))
+    buffer.append(commentFactory.scalaDocComment2Html(
+        askOption(() => expandedDocComment(sym)).getOrElse(""), 
+        rawDocComment(sym), sym.pos, sym))
     buffer
   }
 }
