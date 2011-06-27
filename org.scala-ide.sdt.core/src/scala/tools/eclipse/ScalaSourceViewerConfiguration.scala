@@ -158,12 +158,114 @@ class ScalaSourceViewerConfiguration(store: IPreferenceStore, scalaPreferenceSto
   override def getInformationPresenter(sourceViewer: ISourceViewer) = {      
     val informationPresenter = super.getInformationPresenter(sourceViewer)
     val scalaHover = new ScalaHover(getCodeAssist)
-    scalaHover.setEditor(this.getEditor())    
-    val informationProvider = informationPresenter.getInformationProvider(IDocument.DEFAULT_CONTENT_TYPE).asInstanceOf[JavaInformationProvider]
-    val implementation = 
-      getDeclaredField(classOf[JavaInformationProvider], "fImplementation").
-      get(informationProvider).asInstanceOf[JavaTypeHover]          
-    getDeclaredField(classOf[JavaTypeHover], "fJavadocHover").set(implementation, scalaHover);    
-    informationPresenter;    
+    scalaHover.setEditor(this.getEditor())       
+
+    //the next commented lines are replaced by the explicit reimplementation of the JavaInformationProvider and JavaTypeHover classes through 
+    //ScalaInformationProvider and ScalaJavaTypeHover respectively
+    
+//    val informationProvider = informationPresenter.getInformationProvider(IDocument.DEFAULT_CONTENT_TYPE).asInstanceOf[JavaInformationProvider]    
+//    val implementation = 
+//      getDeclaredField(classOf[JavaInformationProvider], "fImplementation").
+//      get(informationProvider).asInstanceOf[JavaTypeHover]          
+//    getDeclaredField(classOf[JavaTypeHover], "fJavadocHover").set(implementation, scalaHover);
+    
+    import org.eclipse.jface.text.information.InformationPresenter
+    val newInformationProvider = new ScalaInformationProvider(getEditor(), scalaHover)
+    informationPresenter.asInstanceOf[InformationPresenter].setInformationProvider(newInformationProvider, IDocument.DEFAULT_CONTENT_TYPE)
+    informationPresenter;            
   } 
+
+   
+  import org.eclipse.ui.IEditorPart;
+  import org.eclipse.jface.text.information.IInformationProvider;
+  import org.eclipse.jface.text.information.IInformationProviderExtension;
+  import org.eclipse.jface.text.information.IInformationProviderExtension2;
+    
+  /**
+   * A reimplementation of the JavaInformationProvider. The only difference is that the field fImplementation is now initialized with a 
+   * ScalaJavaTypeHover object
+   */
+  class ScalaInformationProvider(editor : IEditorPart, scalaHover : ScalaHover) extends IInformationProvider with IInformationProviderExtension with IInformationProviderExtension2 {  
+    import org.eclipse.jface.text.IInformationControlCreator;
+    import org.eclipse.jface.text.IRegion;
+    import org.eclipse.jface.text.ITextViewer;    
+    import org.eclipse.jdt.internal.ui.text.JavaWordFinder;
+    
+    val fImplementation : ScalaJavaTypeHover = 
+	  if (editor != null) {
+		val scalaJavaTypeHover = new ScalaJavaTypeHover(scalaHover)
+		scalaJavaTypeHover.setEditor(editor);
+		scalaJavaTypeHover
+      } else
+		null
+
+	def getSubject(textViewer : ITextViewer, offset : Int) : IRegion = 
+	  if (textViewer != null) JavaWordFinder.findWord(textViewer.getDocument(), offset)
+	  else null	
+
+    def getInformation(textViewer : ITextViewer, subject : IRegion) : String = {
+	  if (fImplementation != null) {
+		val s= fImplementation.getHoverInfo(textViewer, subject);
+		if (s != null && s.trim().length() > 0) 
+		  return s;					   
+	    }
+	  return null;
+    }
+
+    def getInformation2(textViewer : ITextViewer, subject : IRegion) : Object = 
+	  if (fImplementation == null) null
+	  else fImplementation.getHoverInfo2(textViewer, subject);	
+
+    def getInformationPresenterControlCreator() : IInformationControlCreator = 
+      if (fImplementation == null) null
+      else fImplementation.getInformationPresenterControlCreator();    
+  } 
+  
+  import org.eclipse.jface.text.ITextHoverExtension;
+  import org.eclipse.jface.text.ITextHoverExtension2;
+  import org.eclipse.jdt.ui.text.java.hover.IJavaEditorTextHover;
+  
+  /**
+   * A reimplementation of JavaTypeHover. The only difference is that the field fJavadocHover is set to an object of class ScalaHover 
+   */
+  class ScalaJavaTypeHover(scalaHover : ScalaHover) extends IJavaEditorTextHover with ITextHoverExtension with ITextHoverExtension2 {
+	import org.eclipse.jface.text.IInformationControlCreator;
+    import org.eclipse.jface.text.IRegion;
+    import org.eclipse.jface.text.ITextViewer;
+    import org.eclipse.ui.IEditorPart;
+    import org.eclipse.jdt.internal.ui.text.java.hover.ProblemHover;
+    
+	val fProblemHover : AbstractJavaEditorTextHover = new ProblemHover();
+	val fJavadocHover : AbstractJavaEditorTextHover = scalaHover;
+	var fCurrentHover : AbstractJavaEditorTextHover = null;
+
+	def setEditor(editor : IEditorPart) {
+	  fProblemHover.setEditor(editor);
+	  fJavadocHover.setEditor(editor);
+	  fCurrentHover= null;
+	}
+
+	def getHoverRegion(textViewer : ITextViewer, offset : Int) : IRegion = 
+	  fJavadocHover.getHoverRegion(textViewer, offset);
+	
+	def getHoverInfo(textViewer : ITextViewer, hoverRegion : IRegion) : String = 
+	  String.valueOf(getHoverInfo2(textViewer, hoverRegion));
+	
+	def getHoverInfo2(textViewer : ITextViewer, hoverRegion : IRegion) : Object = {
+	  val hoverInfo= fProblemHover.getHoverInfo2(textViewer, hoverRegion);
+	  if (hoverInfo != null) {
+	    fCurrentHover= fProblemHover;
+		hoverInfo;
+	  } else {
+		fCurrentHover= fJavadocHover;
+		fJavadocHover.getHoverInfo2(textViewer, hoverRegion);
+	  }
+	}
+
+	def getHoverControlCreator() : IInformationControlCreator = 
+	  if (fCurrentHover == null) null else fCurrentHover.getHoverControlCreator();
+	
+	def getInformationPresenterControlCreator() : IInformationControlCreator = 
+	  if (fCurrentHover == null) null else fCurrentHover.getInformationPresenterControlCreator();	
+  }
 }

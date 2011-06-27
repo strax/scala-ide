@@ -199,6 +199,7 @@ trait CommentToHtmlTransformer { self : ScalaPresentationCompiler =>
           val resp = new Response[Tree]
           val range = compiler.rangePos(src, pos, pos, pos + sym.name.length)
           askTypeAt(range, resp)
+          resp.get
         })();
       case _ =>
     }

@@ -149,20 +149,24 @@ class ScalaCompletionProposalComputer extends IJavaCompletionProposalComputer wi
              ": " + tpe.finalResultType.toString}
          else name
          
-       def additionalInfoBuilder() : JavadocBrowserInformationControlInput = {         
+       def additionalInfoBuilder() : JavadocBrowserInformationControlInput = {
+         import org.eclipse.jdt.internal.ui.text.javadoc.JavadocContentAccess2
          val buffer = new StringBuffer();
          HTMLPrinter.insertPageProlog(buffer, 0, styleSheet);             
-                  
-         compiler.getJavaElement2(sym) match {
-           case Some(element) => 
-             val info = element.getAttachedJavadoc(null)         
-             if (info != null && info.length() > 0) 
-               buffer.append(info);
-             else
-               buffer.append(compiler.buildCommentAsHtml(scu, sym, tpe))
-           case _ =>
-             buffer.append(compiler.buildCommentAsHtml(scu, sym, tpe))
-         }
+          
+         if (sym.hasFlag(Flags.JAVA))
+           compiler.getJavaElement2(sym) match {
+             case Some(element) =>                                      
+               val info = JavadocContentAccess2.getHTMLContent(element, true) //element.getAttachedJavadoc(null)         
+               if (info != null && info.length() > 0) 
+                 buffer.append(info);
+               else
+                 buffer.append(compiler.buildCommentAsHtml(scu, sym, tpe))
+             case _ => 
+               throw new IllegalStateException("getJavaElement2 did not find the corresponding Java element for symbol " + sym.fullName) 
+           }
+         else
+           buffer.append(compiler.buildCommentAsHtml(scu, sym, tpe))
            
          HTMLPrinter.addPageEpilog(buffer);
          return new JavadocBrowserInformationControlInput(null, null, buffer.toString, 0);         
@@ -182,6 +186,8 @@ class ScalaCompletionProposalComputer extends IJavaCompletionProposalComputer wi
        }
        
        val contextString = sym.paramss.map(_.map(p => "%s: %s".format(p.decodedName, p.tpe)).mkString("(", ", ", ")")).mkString("")
+       
+       //create a new completion proposal object. The execution of 'additionalInfoBuilder' is deferred until the information is really needed
        buff += new ScalaCompletionProposal(start, name, signature, contextString, additionalInfoBuilder, relevance, image, context.getViewer.getSelectionProvider)
     }
 
@@ -232,7 +238,7 @@ class ScalaCompletionProposalComputer extends IJavaCompletionProposalComputer wi
     lazy val informationControlCreator = {
       import org.eclipse.jdt.internal.ui.JavaPlugin;
 	  val shell= JavaPlugin.getActiveWorkbenchShell();
-	  if (shell == null || !BrowserInformationControl.isAvailable(shell)) 
+	  if (!BrowserInformationControl.isAvailable(shell)) 
 		null
 	  else {
   	    val presenterControlCreator= new JavadocHover.PresenterControlCreator(EclipseUtils.getWorkbenchSite);
