@@ -2,13 +2,17 @@ package scala.tools.eclipse.properties
 
 import scala.tools.nsc.Settings
 import scala.tools.eclipse.{ SettingConverterUtil }
-
 import org.eclipse.swt.widgets.{ Button, Combo, Composite, Control, Event, Group, Label, Listener, Text }
 import org.eclipse.swt.layout.{ GridData, GridLayout }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.events.{ ModifyEvent, ModifyListener, SelectionAdapter, SelectionEvent, SelectionListener }
-
 import org.eclipse.jface.preference.IPreferenceStore
+import java.io.File
+import org.eclipse.jface.fieldassist.FieldDecorationRegistry
+import org.eclipse.jface.fieldassist.ControlDecoration
+import scala.tools.eclipse.ScalaPlugin
+import java.net.URI
+import scala.tools.eclipse.util.SWTUtils
 
 trait EclipseSettings {
   self: ScalaPluginPreferencePage =>
@@ -21,10 +25,8 @@ trait EclipseSettings {
       case setting: Settings#StringSetting =>
         setting.name match {
           case "-Ypresentation-log" | "-Ypresentation-replay" =>
-            logger.info("file setting for " + setting.name)
             new FileSetting(setting)
           case _ =>
-            logger.info("plain old string setting " + setting.name)
             new StringSetting(setting)
         }
       //    case setting : Settings#PhasesSetting  => new StringSetting(setting) // !!!
@@ -193,6 +195,8 @@ trait EclipseSettings {
     def apply() { setting.value = control.getText }
   }
 
+  import scala.tools.eclipse.util.FileUtils._
+  
   /** String setting editable using a File dialog.
    *
    *  @note Temporary implementation. This one does not have a File dialog, instead
@@ -201,6 +205,7 @@ trait EclipseSettings {
   class FileSetting(setting: Settings#StringSetting)
     extends EclipseSetting(setting) {
     var control: Text = _
+    
     def createControl(page: Composite) {
       control = new Text(page, SWT.SINGLE | SWT.BORDER)
       control.setText(setting.value)
@@ -214,16 +219,32 @@ trait EclipseSettings {
       control.addModifyListener(ModifyListenerSing)
     }
 
-    def isChanged = setting.value != fileName(control.getText)
+    def originalString: String = control.getText
+    
+    def isChanged = setting.value != absoluteFileName(control.getText)
     def reset() { control.setText(setting.default) }
-    def apply() { setting.value = fileName(control.getText) }
+    def apply() { setting.value = absoluteFileName(control.getText) }
   }
 
   class MultiFileSetting(setting: Settings#MultiStringSetting) extends EclipseSetting(setting) {
     var control: Text = _
+    
+    lazy val errorIndicator = FieldDecorationRegistry.getDefault().getFieldDecoration(FieldDecorationRegistry.DEC_ERROR)
+
+    lazy val errorDecoration: ControlDecoration = {
+      val decoration = new ControlDecoration(control, SWT.TOP | SWT.LEFT)
+      decoration.setImage(errorIndicator.getImage())
+      decoration.setDescriptionText(errorIndicator.getDescription())
+      decoration
+    }
+
+    
     def createControl(page: Composite) {
       control = new Text(page, SWT.SINGLE | SWT.BORDER)
       control.setText(setting.value.mkString(", "))
+      
+      lazy val variableManager = ScalaPlugin.plugin.workspaceRoot.getPathVariableManager()
+      
       var layout = data
       if (setting.value.isEmpty) {
         layout = new GridData()
@@ -232,28 +253,37 @@ trait EclipseSettings {
       control.setLayoutData(layout)
       control.setMessage("Path is relative to the workspace")
       control.addModifyListener(ModifyListenerSing)
+      
+      import SWTUtils._
+      
+      control.addModifyListener { (event: ModifyEvent) =>
+        val errors = new StringBuffer
+        
+        val paths = control.getText().split(File.pathSeparatorChar).map(_.trim)
+        for (p <- paths) {
+          val internalPath = variableManager.convertFromUserEditableFormat(p, false)
+          val resolved = variableManager.resolveURI(new URI(internalPath))
+          if (!new File(resolved).exists)
+            errors.append("Could not find %s".format(p))
+        }
+        
+        if (errors.length() > 0) {
+          errorDecoration.setDescriptionText(errors.toString)
+        } else {
+          errorDecoration.show()
+        }
+      }
     }
-
+    
     def fileNames() = {
-      control.getText().split(',').map(f => fileName(f.trim)).toList
+      control.getText().split(File.pathSeparatorChar).map(f => absoluteFileName(f.trim)).toList
     }
+    
+    def originalFileNames() =
+      control.getText()
 
     override def isChanged = setting.value != fileNames()
     override def reset() { control.setText("") }
     override def apply() { setting.value = fileNames() }
-  }
-
-  /** Return an absolute path denoted by 'name'. If 'name' is already absolute,
-   *  it returns 'name', otherwise it prepends the absolute path to the workspace.
-   */
-  def fileName(name: String) = {
-    import scala.tools.eclipse.ScalaPlugin
-    import java.io.File
-
-    val f = new File(name)
-    if (name.nonEmpty && !f.isAbsolute) {
-      val workspacePath = ScalaPlugin.plugin.workspaceRoot.getLocation
-      new File(workspacePath.toFile, name).getAbsolutePath
-    } else name
   }
 }

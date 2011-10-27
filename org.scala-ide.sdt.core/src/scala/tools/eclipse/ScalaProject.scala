@@ -33,6 +33,8 @@ import org.eclipse.jdt.core.IPackageFragmentRoot
 import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.core.runtime.IStatus
 import org.eclipse.core.runtime.Status
+import scala.tools.eclipse.util.FileUtils
+import java.io.File
 
 trait BuildSuccessListener {
   def buildSuccessful(): Unit
@@ -54,7 +56,7 @@ class ScalaProject(val underlying: IProject) extends HasLogger {
   case class InvalidCompilerSettings() extends RuntimeException(
         "Scala compiler cannot initialize for project: " + underlying.getName +
     		". Please check that your classpath contains the standard Scala library.")
-
+ 
   private val presentationCompiler = new Cached[Option[ScalaPresentationCompiler]] {
     override def create() = {
       try {
@@ -460,6 +462,23 @@ class ScalaProject(val underlying: IProject) extends HasLogger {
   }
 
   def initialize(settings: Settings, filter: Settings#Setting => Boolean) = {
+
+    /**  Post-process settings value. Currently, it transforms workspace-relative paths to absolute paths
+     *   for Xplugin
+     */
+    def adjustSettingValue(setting: Settings#Setting, value: String): String = setting.name match {
+      case settings.pluginsDir.name =>
+        ScalaPlugin.plugin.continuationsClasses map {
+          _.removeLastSegments(1).toOSString + (if (value.isEmpty) "" else ":" + value)
+        } getOrElse value
+
+      case settings.plugin.name =>
+        value.split(File.pathSeparatorChar).map(f => FileUtils.absoluteFileName(ScalaPlugin.plugin.workspace f.trim)).mkString(" ")
+        
+      case _ =>
+        value
+    }
+    
     // if the workspace project doesn't exist, it is a virtual project used by Eclipse.
     // As such the source folders don't exist.
     if (underlying.exists()) {
@@ -490,12 +509,9 @@ class ScalaProject(val underlying: IProject) extends HasLogger {
       val value0 = store.getString(SettingConverterUtil.convertNameToProperty(setting.name))
 //      logger.info("[%s] initializing %s to %s".format(underlying.getName(), setting.name, value0.toString))
       try {
-        val value = if (setting ne settings.pluginsDir) value0 else {
-          ScalaPlugin.plugin.continuationsClasses map {
-            _.removeLastSegments(1).toOSString + (if (value0 == null || value0.length == 0) "" else ":" + value0)
-          } getOrElse value0
-        }
-        if (value != null && value.length != 0) {
+        val value = adjustSettingValue(setting, value0)
+        assert(value ne null, "null value retrieved from property store")
+        if (value.length != 0) {
           setting.tryToSetFromPropertyValue(value)
         }
       } catch {

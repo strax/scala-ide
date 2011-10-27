@@ -26,6 +26,7 @@ import scala.tools.nsc.CompilerCommand
 import org.eclipse.jface.fieldassist._
 import org.eclipse.jface.bindings.keys.KeyStroke
 import scala.tools.eclipse.util.HasLogger
+import java.io.File
 
 trait ScalaPluginPreferencePage extends HasLogger {
   self: PreferencePage with EclipseSettings =>
@@ -37,9 +38,10 @@ trait ScalaPluginPreferencePage extends HasLogger {
   override def performDefaults = eclipseBoxes.foreach(_.eSettings.foreach(_.reset()))
 
   def save(userBoxes: List[IDESettings.Box], store: IPreferenceStore): Unit = {
-    for (b <- userBoxes) {
-      for (setting <- b.userSettings) {
+    for ((b, eclipseBox) <- userBoxes.zip(eclipseBoxes)) {
+      for ((setting, eclipseSetting) <- b.userSettings.zip(eclipseBox.eSettings)) {
         val name = SettingConverterUtil.convertNameToProperty(setting.name)
+        
         val isDefault = setting match {
           case bs: Settings#BooleanSetting     => bs.value == false
           case is: Settings#IntSetting         => is.value == is.default
@@ -47,12 +49,15 @@ trait ScalaPluginPreferencePage extends HasLogger {
           case ms: Settings#MultiStringSetting => ms.value == Nil
           case cs: Settings#ChoiceSetting      => cs.value == cs.default
         }
+        
         if (isDefault)
           store.setToDefault(name)
         else {
-          val value = setting match {
-            case ms: Settings#MultiStringSetting => ms.value.mkString(" ")
-            case setting                         => setting.value.toString
+          val value = (setting, eclipseSetting) match {
+            case (_, fs: FileSetting)                 => fs.originalString
+            case (_, mfs: MultiFileSetting)           => mfs.originalFileNames
+            case (ms: Settings#MultiStringSetting, _) => ms.value.mkString(File.pathSeparator)
+            case (setting, _)                         => setting.value.toString
           }
           store.setValue(name, value)
         }

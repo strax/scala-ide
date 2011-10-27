@@ -44,7 +44,20 @@ object FileUtils {
       }
   }
 
-  
+   /** Return an absolute path denoted by 'name'. If 'name' is already absolute,
+   *  it returns 'name', otherwise it prepends the absolute path to the workspace.
+   */
+  def absoluteFileName(name: String) = {
+    import scala.tools.eclipse.ScalaPlugin
+    import java.io.File
+
+    val f = new File(name)
+    if (name.nonEmpty && !f.isAbsolute) {
+      val workspacePath = ScalaPlugin.plugin.workspaceRoot.getLocation
+      new File(workspacePath.toFile, name).getAbsolutePath
+    } else name
+  }
+
   def length(file : IFile) = {
     val fs = FileBuffers.getFileStoreAtLocation(file.getLocation)
     if (fs != null)
