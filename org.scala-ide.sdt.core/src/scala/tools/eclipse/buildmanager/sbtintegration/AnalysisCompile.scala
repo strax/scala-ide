@@ -23,6 +23,13 @@ import java.io.File
 import org.eclipse.jdt.launching.JavaRuntime
 import org.eclipse.jdt.core.{ JavaCore, IJavaProject }
 import scala.tools.eclipse.util.HasLogger
+import org.eclipse.core.resources.ResourcesPlugin
+import org.eclipse.core.resources.IResource
+import org.eclipse.core.runtime.NullProgressMonitor
+import org.eclipse.core.runtime.jobs.Job
+import org.eclipse.core.runtime.IProgressMonitor
+import org.eclipse.core.runtime.IStatus
+import org.eclipse.core.runtime.Status
 
 class AnalysisCompile (conf: BasicConfiguration, bm: EclipseSbtBuildManager, contr: Controller) extends HasLogger {
     import AnalysisFormats._
@@ -137,13 +144,29 @@ class AnalysisCompile (conf: BasicConfiguration, bm: EclipseSbtBuildManager, con
                   javac.build(org.eclipse.core.resources.IncrementalProjectBuilder.INCREMENTAL_BUILD)
                   log.flush()
                 }
-            	}
+              }
             
             if(order == JavaThenScala) {
               compileJava(); compileScala()
               throwLater()
             } else {
-              compileScala(); compileJava()
+              compileScala();
+              
+              for (javaSource <- javaSrcs) {
+                for (file <- ResourcesPlugin.getWorkspace().getRoot().findFilesForLocationURI(javaSource.toURI())) {
+                  file.touch(new NullProgressMonitor)
+                }
+              }
+              
+              val markerJob= new Job("Update classpath error marker") {
+                override def run(monitor: IProgressMonitor): IStatus = {
+                  compileJava()
+                  
+                  Status.OK_STATUS
+                }
+              }
+              markerJob.setRule(conf.project.underlying)
+              markerJob.schedule()
               // if we reached here, then it might be that compiling scala files failed but java succeded
               // it might be the case that we just want to proceed with compiling java files when scala succeded
               // this is still something that needs to be settled (in the latter case we won't see errors for java files)
