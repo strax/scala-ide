@@ -66,7 +66,6 @@ class EclipseRefinedBuildManager(project: ScalaProject, settings0: Settings)
           super.compileLate(file)
         }
       }
-
   }
 
   def build(addedOrUpdated: Set[IFile], removed: Set[IFile], submon: SubMonitor) {

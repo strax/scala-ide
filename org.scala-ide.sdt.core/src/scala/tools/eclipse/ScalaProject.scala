@@ -39,6 +39,8 @@ import scala.tools.eclipse.util.FileUtils
 import scala.tools.nsc.util.BatchSourceFile
 import java.io.InputStream
 import java.io.InputStreamReader
+import org.eclipse.core.runtime.Platform
+import scala.tools.eclipse.codeanalysis.CodeAnalysisPreferences
 
 trait BuildSuccessListener {
   def buildSuccessful(): Unit
@@ -570,6 +572,13 @@ class ScalaProject private (val underlying: IProject) extends HasLogger {
       }
     }
     
+    if(CodeAnalysisPreferences.isGenerallyEnabledForProject(underlying)) {
+      val plugins = List("org.scala-refactoring.library", "org.scala-ide.sdt.codeanalysis")
+      val bundles = plugins map Platform.getBundle map Option.apply flatten
+      val jars    = bundles map (FileLocator.getBundleFile(_).getAbsolutePath) filter (_.endsWith("jar"))
+      jars foreach settings.plugin.appendToValue
+    }
+
     // handle additional parameters
     val additional = store.getString(CompilerSettings.ADDITIONAL_PARAMS)
     logger.info("setting additional paramters: " + additional)

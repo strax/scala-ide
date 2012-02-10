@@ -13,6 +13,7 @@ import scala.tools.eclipse.sbtbuilder.NestedProjectsTest;
 import scala.tools.eclipse.sbtbuilder.OutputFoldersTest;
 import scala.tools.eclipse.sbtbuilder.SbtBuilderTest;
 import scala.tools.eclipse.sbtbuilder.TodoBuilderTest;
+import scala.tools.eclipse.sbtbuilder.CodeAnalysisTest;
 import scala.tools.eclipse.semantic.ImplicitsHighlightingTest;
 import scala.tools.eclipse.sbtbuilder.ScalaCompilerClasspathTest;
 import scala.tools.eclipse.sbtbuilder.ScalaJavaDepTest;
@@ -47,6 +48,7 @@ import org.junit.runners.Suite;
   //scala.tools.eclipse.interpreter.EclipseReplTest.class, // see comments there
   ClasspathTests.class,
   TodoBuilderTest.class,
+  CodeAnalysisTest.class,
   ImplicitsHighlightingTest.class,
   ScalaJavaDepTest.class,
   NestedProjectsTest.class,

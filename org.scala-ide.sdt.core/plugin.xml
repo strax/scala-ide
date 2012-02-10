@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?eclipse version="3.2"?>
 <plugin>
+   <extension-point id="scalaCodeAnalysis" name="Scala Code Analysis" schema="schema/scalaCodeAnalysis.exsd"/>
    <extension-point id="reconciliationParticipants" name="Reconcilation Participants" schema="schema/reconciliationParticipants.exsd"/>
    <extension
          point="org.eclipse.ui.propertyPages">
@@ -754,6 +755,9 @@
      <initializer
            class="scala.tools.eclipse.logging.ui.properties.LoggingPreferencePageInitializer">
      </initializer>
+     <initializer
+           class="scala.tools.eclipse.codeanalysis.CodeAnalysisPreferenceInitializer">
+     </initializer>
   </extension>
 
   <extension point="org.eclipse.core.expressions.propertyTesters">
@@ -1273,4 +1277,49 @@
        </enablement>
     </moveParticipant>
  </extension>
+
+   <!-- Code Analysis -->
+   <extension
+         point="org.eclipse.ui.propertyPages">
+      <page
+            class="scala.tools.eclipse.codeanalysis.CodeAnalysisPreferencePage"
+            id="scala.tools.eclipse.codeanalysis.CodeAnalysisPropertyPage"
+            name="Scala Code Analysis">
+         <filter
+               name="nature"
+               value="org.scala-ide.sdt.core.scalanature"/>
+         <enabledWhen>
+         <or> <instanceof value="org.eclipse.jdt.core.IJavaProject"/>
+              <instanceof value="org.eclipse.core.resources.IProject"/>
+         </or>
+         </enabledWhen>
+      </page>
+   </extension>
+   <extension point="org.eclipse.ui.preferencePages">
+      <page
+            category="org.scala-ide.sdt.core.preferences"
+            class="scala.tools.eclipse.codeanalysis.CodeAnalysisPreferencePage"
+            id="scala.tools.eclipse.codeanalysis.CodeAnalysisPreferencePage"
+            name="Code Analysis">
+      </page>
+   </extension>
+  <extension
+        id="org.scala-ide.sdt.core.preferences"
+        point="org.eclipse.core.runtime.preferences">
+     <initializer
+           class="scala.tools.eclipse.codeanalysis.CodeAnalysisPreferenceInitializer">
+     </initializer>
+  </extension>
+  <extension
+       id="scalaCodeAnalysisProblem"
+       name="Scala Code Analysis"
+       point="org.eclipse.core.resources.markers">
+    <super
+          type="org.scala-ide.sdt.core.problem">
+    </super>
+    <persistent
+          value="true">
+    </persistent>
+  </extension>
+
 </plugin>
