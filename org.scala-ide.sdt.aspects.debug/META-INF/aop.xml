@@ -1,0 +1,5 @@
+<aspectj>
+<aspects>
+<aspect name="scala.tools.eclipse.debug.scalac.CompilerAspect"/>
+</aspects>
+</aspectj>
