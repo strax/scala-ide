@@ -31,7 +31,7 @@ case class ScalaSyntaxClass(displayName: String, baseName: String, canBeDisabled
     new TextAttribute(styleInfo.foreground, styleInfo.backgroundOpt.orNull, style)
   }
 
-  private val colourManager = JavaPlugin.getDefault.getJavaTextTools.getColorManager
+  private lazy val colourManager = JavaPlugin.getDefault.getJavaTextTools.getColorManager
 
   def getStyleRange(preferenceStore: IPreferenceStore): StyleRange = {
     val styleRange = new StyleRange
