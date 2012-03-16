@@ -2,16 +2,17 @@
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>org.scala-ide</groupId>
-  <artifactId>scala-toolchain-for-eclipse</artifactId>
+  <parent>
+    <groupId>org.scala-ide</groupId>
+    <artifactId>scala-ide-for-eclipse</artifactId>
+    <version>1</version>
+    <relativePath>../org.scala-ide/pom.xml</relativePath>
+  </parent>
   <version>2.9.2-SNAPSHOT</version>
-  <name>The Scala Toolchain for Eclipse</name>
+  <artifactId>scala-toolchain-for-eclipse</artifactId>
   <packaging>pom</packaging>
 
   <properties>
-    <sbt.version>0.11.4</sbt.version>
-    <patch.level>p0002</patch.level>
-    <encoding>UTF-8</encoding>
     <scala.library.version>${scala.version}</scala.library.version>
   </properties>
 
@@ -20,6 +21,7 @@
     <module>../org.scala-ide.scala.library</module>
     <module>../org.scala-ide.sbt.full.library</module>
   </modules>
+  
   <dependencyManagement>
     <dependencies>
       <dependency>
@@ -69,8 +71,6 @@
       <properties>
         <scala.compiler.groupid>org.scala-lang</scala.compiler.groupid>
         <scala.compiler.version>${scala.version}</scala.compiler.version>
-        <maintenance.suffix></maintenance.suffix>
-        <patch.level.suffix></patch.level.suffix>
       </properties>
 
       <repositories>
@@ -98,8 +98,6 @@
       <properties>
         <scala.compiler.groupid>org.scala-lang</scala.compiler.groupid>
         <scala.compiler.version>${scala.version}</scala.compiler.version>
-        <maintenance.suffix></maintenance.suffix>
-        <patch.level.suffix></patch.level.suffix>
       </properties>
     </profile>
     <profile>
@@ -114,9 +112,6 @@
 
         <!-- Used as part of the artifact name for SBT cross-compiled modules. -->
         <sbt.compiled.version>${sbt.scala.version}</sbt.compiled.version>
-
-        <maintenance.suffix></maintenance.suffix>
-        <patch.level.suffix></patch.level.suffix>
       </properties>
       <repositories>
         <repository>

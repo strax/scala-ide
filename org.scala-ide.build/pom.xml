@@ -2,21 +2,23 @@
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>org.scala-ide</groupId>
-  <artifactId>scala-ide-for-eclipse</artifactId>
+  <parent>
+    <groupId>org.scala-ide</groupId>
+    <artifactId>scala-ide-for-eclipse</artifactId>
+    <version>1</version>
+    <relativePath>../org.scala-ide/pom.xml</relativePath>
+  </parent>
   <version>2.0.1-SNAPSHOT</version>
-  <name>The Scala IDE for Eclipse</name>
+  <artifactId>org.scala-ide.build</artifactId>
   <packaging>pom</packaging>
 
   <properties>
     <version.tag>nightly</version.tag>
     <version.suffix>2_09</version.suffix>
     <scala.version.short>2.9</scala.version.short>
-    <sbt.version>0.11.4</sbt.version>
     <tycho.version>0.12.0</tycho.version>
     <maven.compiler.source>1.5</maven.compiler.source>
     <maven.compiler.target>1.5</maven.compiler.target>
-    <encoding>UTF-8</encoding>
     <repo.scala-ide>http://download.scala-ide.org</repo.scala-ide>
     <repo.helios>http://download.eclipse.org/releases/helios/</repo.helios>
   </properties>
@@ -152,12 +154,6 @@
   <profiles>
     <profile>
       <id>scala-2.9.2-SNAPSHOT</id>
-      <activation>
-        <property>
-          <name>scala.version</name>
-          <value>2.9.2-SNAPSHOT</value>
-        </property>
-      </activation>
       <properties>
         <version.suffix>2_09</version.suffix>
       </properties>
@@ -179,6 +175,33 @@
           <name>Scala Toolchain 2.9.2-SNAPSHOT p2 repository</name>
           <layout>p2</layout>
           <url>${repo.scala-ide}/scala-eclipse-toolchain-osgi-2.9.2-SNAPSHOT</url>
+        </repository>
+      </repositories>
+    </profile>
+    <profile>
+      <id>release-ide-29</id>
+      <properties>
+        <version.suffix>2_09</version.suffix>
+      </properties>
+      <repositories>
+        <repository>
+          <id>scala-refactoring-2.0</id>
+          <name>Scala Refactoring Scala 2.9 p2 repository</name>
+          <layout>p2</layout>
+          <url>${repo.scala-ide}/incoming-release-29/dependencies/scala-refactoring</url>
+        </repository>
+        <repository>
+          <id>scalariform-2.0</id>
+          <name>Scalariform Scala 2.9 p2 repo</name>
+          <layout>p2</layout>
+          <url>${repo.scala-ide}/incoming-release-29/dependencies/scalariform</url>
+        </repository>
+        <repository>
+          <id>scala-toolchain-2.9.2-SNAPSHOT</id>
+          <name>Scala Toolchain 2.9.2-SNAPSHOT p2 repository</name>
+          <layout>p2</layout>
+          <url>${repo.scala-ide}/scala-eclipse-toolchain-osgi-2.9.2-SNAPSHOT</url>
+          <!-- <url>file:/absolute/path/to/org.scala-ide.build-toolchain/mkrepo/scala-eclipse-toolchain-osgi-2.9.2-SNAPSHOT</url> -->
         </repository>
       </repositories>
     </profile>
